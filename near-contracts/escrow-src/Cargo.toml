@@ -37,6 +37,8 @@ container_build_command = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 near-sdk = { workspace = true }
+shared-lib = { path = "../shared-lib" }
+hex = "0.4.3"
 
 [dev-dependencies]
 near-sdk = { workspace = true, features = ["unit-testing"] }

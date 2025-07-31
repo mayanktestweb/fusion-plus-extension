@@ -1,0 +1,7 @@
+[package]
+name = "shared-lib"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+near-sdk = { version = "5.14", features = ["non-contract-usage"] }
