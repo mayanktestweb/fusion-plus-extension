@@ -15,7 +15,7 @@ struct MakerOrder {
     is_multi_fill: bool,
     parts: u16,
     filled_amount: NearToken,
-    maker: String,
+    maker: AccountId,
     expiration: u64
 }
 
@@ -36,10 +36,6 @@ pub struct EscrowSrc {
 }
 
 impl EscrowSrc {
-
-    fn test() {
-        let timelock = env::block_timestamp();
-    }
 
     // it will place the maker order
     pub fn place_maker_order() {
@@ -75,7 +71,7 @@ impl EscrowSrc {
 
         let maker_order = maker_order.unwrap();
 
-        if maker_order.maker != sender_id.to_string() {
+        if maker_order.maker != sender_id {
             log!("Maker order does not match the sender ID: {}", sender_id);
             return PromiseOrValue::Value(amount);
         }
