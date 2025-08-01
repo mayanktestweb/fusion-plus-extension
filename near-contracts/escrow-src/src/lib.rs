@@ -175,8 +175,8 @@ impl EscrowSrc {
 
         // add as filled amount in maker order
         if let Some(value) = self.makers_orders.get_mut(&root_hash.clone()) {
-            let filled_amount_u128: u128 = filled_amount.clone().as_yoctonear();
-            let making_amount_u128: u128 = making_amount.clone().as_yoctonear();
+            let filled_amount_u128: u128 = filled_amount.as_yoctonear();
+            let making_amount_u128: u128 = making_amount.as_yoctonear();
             let new_filled_amount = filled_amount_u128.checked_add(making_amount_u128)
                 .expect("Overflow when calculating new filled amount");
             value.filled_amount = NearToken::from_yoctonear(new_filled_amount);
@@ -184,8 +184,83 @@ impl EscrowSrc {
     }
 
 
+    /**
+     * @dev The function works on the time interval highlighted with capital letters:
+     * ---- contract deployed --/-- finality --/-- PRIVATE WITHDRAWAL --/-- PUBLIC WITHDRAWAL --/--
+     * --/-- private cancellation --/-- public cancellation ----
+     */
+    pub fn withdraw(&mut self, secret: String, immutables: Immutables) {
+        // only taker can call it
+        require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
+        require!(Self::_only_after(immutables.timelock.src_withdrawal));
+        require!(Self::_only_before(immutables.timelock.src_cancellation));
+
+        // validate secret
+        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+
+        unimplemented!()
+    }
+
+
+    /**
+     * @dev The function works on the time interval highlighted with capital letters:
+     * ---- contract deployed --/-- finality --/-- PRIVATE WITHDRAWAL --/-- PUBLIC WITHDRAWAL --/--
+     * --/-- private cancellation --/-- public cancellation ----
+     */
+    pub fn withdraw_to(&mut self, secret: String, immutables: Immutables) {
+        // only taker can call it
+        require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
+        require!(Self::_only_after(immutables.timelock.src_withdrawal));
+        require!(Self::_only_before(immutables.timelock.src_cancellation));
+        
+        // validate secret
+        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+        
+        unimplemented!()
+    }
+
+    /**
+     * @dev The function works on the time interval highlighted with capital letters:
+     * ---- contract deployed --/-- finality --/-- private withdrawal --/-- PUBLIC WITHDRAWAL --/--
+     * --/-- private cancellation --/-- public cancellation ----
+     */
+    pub fn pubic_withdraw(&mut self, secret: String, immutables: Immutables) {
+        // anyone can call it
+        
+        require!(Self::_only_after(immutables.timelock.src_public_withdrawal));
+        require!(Self::_only_before(immutables.timelock.src_cancellation));
+        
+        // validate secret
+        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+        
+        unimplemented!()
+    }
     
-    
+    /**
+     * @dev The function works on the time intervals highlighted with capital letters:
+     * ---- contract deployed --/-- finality --/-- private withdrawal --/-- public withdrawal --/--
+     * --/-- PRIVATE CANCELLATION --/-- PUBLIC CANCELLATION ----
+     */
+    pub fn cancel(&mut self, immutables: Immutables) {
+        // only taker can call it
+        require!(env::predecessor_account_id() == immutables.taker, "Only taker can cancel...");
+        require!(Self::_only_after(immutables.timelock.src_cancellation));
+
+        unimplemented!()
+    }
+
+    /**
+     * @dev The function works on the time intervals highlighted with capital letters:
+     * ---- contract deployed --/-- finality --/-- private withdrawal --/-- public withdrawal --/--
+     * --/-- private cancellation --/-- PUBLIC CANCELLATION ----
+     */
+    pub fn public_cancel(&mut self, immutables: Immutables) {
+        // anyone can call it
+
+        // only after Timelock.src_cancellation
+        require!(Self::_only_after(immutables.timelock.src_public_cancellation));
+        unimplemented!()
+    }
     
 }
 
@@ -251,5 +326,23 @@ impl EscrowSrc  {
 
         // The result should be less than `parts`. Since `parts` is u16, this conversion is safe.
         index as u16
+    }
+
+    fn _only_after(timestamp: u64) -> bool {
+        env::block_timestamp() > timestamp
+    }
+
+    fn _only_before(timestamp: u64) -> bool {
+        env::block_timestamp() < timestamp
+    }
+
+    fn validate_secret(secret: String, hashlock: String) -> bool {
+        let hash = env::keccak256(secret.as_bytes());
+        let hash_hex = hex::encode(hash);
+        let hashlock = match hashlock.starts_with("0x") {
+            true => hashlock[2..].to_string(),
+            false => hashlock.to_string()
+        };
+        hash_hex == hashlock
     }
 }
