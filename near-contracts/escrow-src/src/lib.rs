@@ -1,6 +1,9 @@
-use near_sdk::{borsh::{BorshDeserialize, BorshSerialize}, env, log, near_bindgen, require, serde::{Deserialize, Serialize}, store::LookupMap, AccountId, NearSchema, NearToken, PromiseOrValue};
-use shared_lib::{immutables::Immutables, merkle_verifier::MerkleVerifier};
+use std::str::FromStr;
 
+use near_sdk::{borsh::{BorshDeserialize, BorshSerialize}, env, log, near_bindgen, require, serde::{Deserialize, Serialize}, store::LookupMap, AccountId, Gas, NearSchema, NearToken, Promise, PromiseOrValue};
+use shared_lib::{fungible_tokens::{ext_ft, StorageBalance}, immutables::Immutables, merkle_verifier::MerkleVerifier};
+
+pub mod ft_functions;
 
 // Main User Order
 #[derive(BorshSerialize, BorshDeserialize, Serialize, Deserialize, NearSchema)]
@@ -189,6 +192,7 @@ impl EscrowSrc {
      * ---- contract deployed --/-- finality --/-- PRIVATE WITHDRAWAL --/-- PUBLIC WITHDRAWAL --/--
      * --/-- private cancellation --/-- public cancellation ----
      */
+    #[payable]
     pub fn withdraw(&mut self, secret: String, immutables: Immutables) {
         // only taker can call it
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
@@ -198,7 +202,15 @@ impl EscrowSrc {
         // validate secret
         require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
 
-        unimplemented!()
+        // withdraw tokens
+        self.safe_ft_transfer(
+            AccountId::from_str(&immutables.making_token).expect("invalid token..."), 
+            AccountId::from_str(&immutables.taker).expect("Invalid receiver account..."), 
+            immutables.making_amount
+        );
+
+        // release safty deposit
+        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
     }
 
 
@@ -207,7 +219,8 @@ impl EscrowSrc {
      * ---- contract deployed --/-- finality --/-- PRIVATE WITHDRAWAL --/-- PUBLIC WITHDRAWAL --/--
      * --/-- private cancellation --/-- public cancellation ----
      */
-    pub fn withdraw_to(&mut self, secret: String, immutables: Immutables) {
+    #[payable]
+    pub fn withdraw_to(&mut self, secret: String, immutables: Immutables, target: AccountId) {
         // only taker can call it
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
         require!(Self::_only_after(immutables.timelock.src_withdrawal));
@@ -216,7 +229,15 @@ impl EscrowSrc {
         // validate secret
         require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
         
-        unimplemented!()
+        // withdraw tokens
+        self.safe_ft_transfer(
+            AccountId::from_str(&immutables.making_token).expect("invalid token..."), 
+            target, 
+            immutables.making_amount
+        );
+
+        // release safty deposit
+        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
     }
 
     /**
@@ -224,6 +245,7 @@ impl EscrowSrc {
      * ---- contract deployed --/-- finality --/-- private withdrawal --/-- PUBLIC WITHDRAWAL --/--
      * --/-- private cancellation --/-- public cancellation ----
      */
+    #[payable]
     pub fn pubic_withdraw(&mut self, secret: String, immutables: Immutables) {
         // anyone can call it
         
@@ -233,7 +255,15 @@ impl EscrowSrc {
         // validate secret
         require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
         
-        unimplemented!()
+        // withdraw tokens
+        self.safe_ft_transfer(
+            AccountId::from_str(&immutables.making_token).expect("invalid token..."), 
+            AccountId::from_str(&immutables.taker).expect("Invalid receiver account..."), 
+            immutables.making_amount
+        );
+
+        // release safty deposit
+        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
     }
     
     /**
@@ -246,7 +276,16 @@ impl EscrowSrc {
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can cancel...");
         require!(Self::_only_after(immutables.timelock.src_cancellation));
 
-        unimplemented!()
+        // send maker's assets back
+        let makers_token = AccountId::from_str(&immutables.making_token.clone())
+            .expect("invalid token...");
+        let maker = AccountId::from_str(&immutables.maker).expect("Invalid receiver account...");
+        ext_ft::ext(makers_token)
+            .with_static_gas(Gas::from_tgas(30))
+            .ft_transfer(maker, immutables.making_amount, Some("Order Cancelled".to_string()));
+
+        // release safty deposit
+        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);        
     }
 
     /**
@@ -259,7 +298,17 @@ impl EscrowSrc {
 
         // only after Timelock.src_cancellation
         require!(Self::_only_after(immutables.timelock.src_public_cancellation));
-        unimplemented!()
+        
+        // send maker's assets back
+        let makers_token = AccountId::from_str(&immutables.making_token.clone())
+            .expect("invalid token...");
+        let maker = AccountId::from_str(&immutables.maker).expect("Invalid receiver account...");
+        ext_ft::ext(makers_token)
+            .with_static_gas(Gas::from_tgas(30))
+            .ft_transfer(maker, immutables.making_amount, Some("Order Cancelled".to_string()));
+
+        // release safty deposit
+        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
     }
     
 }
@@ -346,3 +395,4 @@ impl EscrowSrc  {
         hash_hex == hashlock
     }
 }
+
