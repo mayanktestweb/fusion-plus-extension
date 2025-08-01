@@ -2,6 +2,7 @@ use near_sdk::{
     env, near_bindgen, AccountId, Promise, Gas, ext_contract,
     PromiseResult,
 };
+use shared_lib::fungible_tokens::{ext_ft, StorageBalance};
 
 const GAS_FOR_STORAGE_BALANCE_OF: Gas = Gas::from_tgas(10);
 const GAS_FOR_STORAGE_DEPOSIT: Gas = Gas::from_tgas(20);
@@ -29,7 +30,7 @@ trait _Callbacks {
 }
 
 #[near_bindgen]
-impl EscrowSrc {
+impl EscrowDst {
     #[private]
     pub fn safe_ft_transfer(
         &mut self,

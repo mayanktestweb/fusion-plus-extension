@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "escrow-src", "shared-lib",
+    "escrow-src", "shared-lib", "escrow-dst"
 ]
 
 [workspace.dependencies]

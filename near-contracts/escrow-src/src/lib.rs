@@ -82,28 +82,11 @@ impl EscrowSrc {
 
         let maker_order = maker_order.unwrap();
 
-        if maker_order.maker != sender_id {
-            log!("Maker order does not match the sender ID: {}", sender_id);
-            return PromiseOrValue::Value(amount);
-        }
-
-        if maker_order.total_amount < amount {
-            log!("Maker order total amount is less than the transferred amount");
-            return PromiseOrValue::Value(amount);
-        }
-
-        // validate the token itself
-        if maker_order.token != env::predecessor_account_id() {
-            log!("Invalid token: {}", maker_order.token);
-            return PromiseOrValue::Value(amount);
-        }
-
-        if maker_order.expiration < env::block_timestamp() + 500 {
-            log!("expiration is too close: {}", maker_order.expiration);
-            return PromiseOrValue::Value(amount);
-        }
-
-
+        require!(maker_order.maker == sender_id, "Maker order does not match the sender ID");
+        require!(maker_order.total_amount <= amount, "Maker order total amount is greater than the transferred amount");
+        require!(maker_order.token == env::predecessor_account_id(), "Invalid token");
+        require!(maker_order.filled_amount == NearToken::from_yoctonear(0), "Maker order is already filled");
+        require!(maker_order.expiration > env::block_timestamp() + 500, "Maker order has expired");
 
         // Return unused tokens if any
         let unused_tokens = amount.checked_sub(maker_order.total_amount);
@@ -129,7 +112,7 @@ impl EscrowSrc {
     ) {
         // first check if safty deposit is there
         let attached_deposit = env::attached_deposit();
-        require!(attached_deposit == immutables.safty_deposit,
+        require!(attached_deposit == immutables.src_safty_deposit,
         "Invalid or no safty deposit...!");
 
         // check if maker order exists to fill
@@ -196,11 +179,11 @@ impl EscrowSrc {
     pub fn withdraw(&mut self, secret: String, immutables: Immutables) {
         // only taker can call it
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
-        require!(Self::_only_after(immutables.timelock.src_withdrawal));
-        require!(Self::_only_before(immutables.timelock.src_cancellation));
+        require!(shared_lib::utils::_only_after(immutables.timelock.src_withdrawal));
+        require!(shared_lib::utils::_only_before(immutables.timelock.src_cancellation));
 
         // validate secret
-        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+        require!(shared_lib::utils::validate_secret(secret, immutables.hashlock), "Invalid secret...");
 
         // withdraw tokens
         self.safe_ft_transfer(
@@ -210,7 +193,7 @@ impl EscrowSrc {
         );
 
         // release safty deposit
-        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
+        Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);
     }
 
 
@@ -223,11 +206,11 @@ impl EscrowSrc {
     pub fn withdraw_to(&mut self, secret: String, immutables: Immutables, target: AccountId) {
         // only taker can call it
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can withdraw...",);
-        require!(Self::_only_after(immutables.timelock.src_withdrawal));
-        require!(Self::_only_before(immutables.timelock.src_cancellation));
+        require!(shared_lib::utils::_only_after(immutables.timelock.src_withdrawal));
+        require!(shared_lib::utils::_only_before(immutables.timelock.src_cancellation));
         
         // validate secret
-        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+        require!(shared_lib::utils::validate_secret(secret, immutables.hashlock), "Invalid secret...");
         
         // withdraw tokens
         self.safe_ft_transfer(
@@ -237,7 +220,7 @@ impl EscrowSrc {
         );
 
         // release safty deposit
-        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
+        Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);
     }
 
     /**
@@ -249,11 +232,11 @@ impl EscrowSrc {
     pub fn pubic_withdraw(&mut self, secret: String, immutables: Immutables) {
         // anyone can call it
         
-        require!(Self::_only_after(immutables.timelock.src_public_withdrawal));
-        require!(Self::_only_before(immutables.timelock.src_cancellation));
+        require!(shared_lib::utils::_only_after(immutables.timelock.src_public_withdrawal));
+        require!(shared_lib::utils::_only_before(immutables.timelock.src_cancellation));
         
         // validate secret
-        require!(Self::validate_secret(secret, immutables.hashlock), "Invalid secret...");
+        require!(shared_lib::utils::validate_secret(secret, immutables.hashlock), "Invalid secret...");
         
         // withdraw tokens
         self.safe_ft_transfer(
@@ -263,7 +246,7 @@ impl EscrowSrc {
         );
 
         // release safty deposit
-        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
+        Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);
     }
     
     /**
@@ -274,7 +257,7 @@ impl EscrowSrc {
     pub fn cancel(&mut self, immutables: Immutables) {
         // only taker can call it
         require!(env::predecessor_account_id() == immutables.taker, "Only taker can cancel...");
-        require!(Self::_only_after(immutables.timelock.src_cancellation));
+        require!(shared_lib::utils::_only_after(immutables.timelock.src_cancellation));
 
         // send maker's assets back
         let makers_token = AccountId::from_str(&immutables.making_token.clone())
@@ -285,7 +268,7 @@ impl EscrowSrc {
             .ft_transfer(maker, immutables.making_amount, Some("Order Cancelled".to_string()));
 
         // release safty deposit
-        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);        
+        Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);        
     }
 
     /**
@@ -297,7 +280,7 @@ impl EscrowSrc {
         // anyone can call it
 
         // only after Timelock.src_cancellation
-        require!(Self::_only_after(immutables.timelock.src_public_cancellation));
+        require!(shared_lib::utils::_only_after(immutables.timelock.src_public_cancellation));
         
         // send maker's assets back
         let makers_token = AccountId::from_str(&immutables.making_token.clone())
@@ -308,7 +291,7 @@ impl EscrowSrc {
             .ft_transfer(maker, immutables.making_amount, Some("Order Cancelled".to_string()));
 
         // release safty deposit
-        Promise::new(env::predecessor_account_id()).transfer(immutables.safty_deposit);
+        Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);
     }
     
 }
@@ -364,7 +347,7 @@ impl EscrowSrc  {
             return parts;
         }
 
-
+        
         // As per the formula: index = (filled_amount + making_amount - 1) * parts / total_amount
         // This calculates a 0-based index.
         let numerator = (current_filled - 1)
@@ -376,23 +359,4 @@ impl EscrowSrc  {
         // The result should be less than `parts`. Since `parts` is u16, this conversion is safe.
         index as u16
     }
-
-    fn _only_after(timestamp: u64) -> bool {
-        env::block_timestamp() > timestamp
-    }
-
-    fn _only_before(timestamp: u64) -> bool {
-        env::block_timestamp() < timestamp
-    }
-
-    fn validate_secret(secret: String, hashlock: String) -> bool {
-        let hash = env::keccak256(secret.as_bytes());
-        let hash_hex = hex::encode(hash);
-        let hashlock = match hashlock.starts_with("0x") {
-            true => hashlock[2..].to_string(),
-            false => hashlock.to_string()
-        };
-        hash_hex == hashlock
-    }
 }
-

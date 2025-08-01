@@ -10,7 +10,8 @@ pub struct Immutables {
     pub taking_token: String,           // token that user wants 
     pub making_amount: NearToken,       // total tokens maker is putting
     pub taking_amount: NearToken,       // tokens that token is expected to receive
-    pub safty_deposit: NearToken,       // resolver's safty deposit
+    pub src_safty_deposit: NearToken,   // source chain safty deposit
+    pub dst_safty_deposit: NearToken,   // destination chain safty deposit
     pub timelock: TimeLock,             // transaction timelocks
     pub maker: String,                  // maker account
     pub taker: String,                  // taker account
