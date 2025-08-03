@@ -293,6 +293,11 @@ impl EscrowSrc {
         // release safty deposit
         Promise::new(env::predecessor_account_id()).transfer(immutables.src_safty_deposit);
     }
+
+    // a simple method to check existance of order based on immutables
+    pub fn check_order(&self, immutables: Immutables) -> bool {
+        self.resolver_orders.contains_key(&immutables.hash())
+    }
     
 }
 
