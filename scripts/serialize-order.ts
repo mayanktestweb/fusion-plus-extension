@@ -1,8 +1,12 @@
 import * as borsh from "borsh";
+import { keccak256 } from "ethers"
 
 const secret = "test_secret_123";
-const keccak256 = require('keccak256');
-const rootHash = keccak256(secret).toString('hex');
+let rootHash = keccak256(secret);
+
+if (rootHash.startsWith("0x")) {
+    rootHash = rootHash.slice(2); // Remove '0x' prefix if present
+}
 
 const makerOrder = {
     root_hash: rootHash, // Use the actual hash
