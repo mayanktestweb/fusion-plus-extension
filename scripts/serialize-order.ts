@@ -1,5 +1,20 @@
 import * as borsh from "borsh";
 
+const secret = "test_secret_123";
+const keccak256 = require('keccak256');
+const rootHash = keccak256(secret).toString('hex');
+
+const makerOrder = {
+    root_hash: rootHash, // Use the actual hash
+    token: "mayank-token-1.testnet",
+    total_amount: "1000000000000000000000000", // 1 token (assuming 24 decimals)
+    parts: 1,
+    filled_amount: "0",
+    withdrawn_amount: "0",
+    maker: "mayank-hello-world.testnet",
+    expiration: (Date.now() + 86400000) * 1000000 // 24 hours from now in nanoseconds
+};
+
 // Borsh schema for MakerOrder
 const makerOrderSchema = {
   struct: {
@@ -14,17 +29,6 @@ const makerOrderSchema = {
   }
 };
 
-// Create fake maker order
-const makerOrder = {
-  root_hash: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", // SHA256 of empty string
-  token: "mayank-token-1.testnet",
-  total_amount: "1000000000000000000000000", // 1 token (assuming 24 decimals)
-  parts: 1,
-  filled_amount: "0",
-  withdrawn_amount: "0",
-  maker: "mayank-hello-world.testnet",
-  expiration: (Date.now() + 86400000) * 1000000 // 24 hours from now in nanoseconds
-};
 
 function serializeOrder() {
   try {
