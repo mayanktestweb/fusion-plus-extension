@@ -2,6 +2,16 @@
 
 This directory contains scripts for interacting with NEAR smart contracts, specifically for creating maker orders in the escrow system.
 
+## ⚠️ Security Warning
+
+**IMPORTANT:** This project contains `keys.json` and other key files that include private key information. These files are included for **demo purposes only** and should **NEVER** be committed to version control or shared publicly in a production environment. 
+
+For production use:
+- Use environment variables or secure key management systems
+- Store keys in `~/.near-credentials/` directory
+- Add key files to `.gitignore`
+- Consider using NEAR CLI's built-in key management
+
 ## Prerequisites
 
 - [NEAR CLI](https://docs.near.org/tools/near-cli) installed and configured
